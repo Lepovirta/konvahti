@@ -56,12 +56,17 @@ func (w *Watcher) Setup(
 	return
 }
 
-func (s *Watcher) Run(ctx context.Context) error {
-	ctx = s.logger.WithContext(ctx)
+func (s *Watcher) Logger() zerolog.Logger {
+	return s.logger
+}
 
+func (s *Watcher) Run(ctx context.Context) error {
 	if s.config.ShouldRunOnce() {
+		s.logger.Debug().Msg("running only once")
 		return s.runOnce(ctx)
 	}
+
+	s.logger.Debug().Msg("running in a continuous loop")
 	for {
 		select {
 		case <-ctx.Done():
@@ -76,17 +81,28 @@ func (s *Watcher) Run(ctx context.Context) error {
 }
 
 func (s *Watcher) runOnce(ctx context.Context) error {
+	logger := s.logger.With().Int64("runId", time.Now().Unix()).Logger()
+	ctx = s.logger.WithContext(ctx)
+
 	refreshCtx, refreshCancel := s.config.ctxWithRefreshTimeout(ctx)
 	defer refreshCancel()
+
 	log.Debug().Str("stage", "refresh").Msg("refreshing file source")
 	changedFiles, err := s.fileSource.Refresh(refreshCtx)
 	if err != nil {
 		return err
 	}
+	log.Debug().Msgf("%d file changes found", len(changedFiles))
 
-	logger := s.fileSource.GetLogCtx(&s.logger)
-	for _, i := range s.findActionsToRun(changedFiles, logger) {
-		if err := s.runners[i].Run(ctx, logger); err != nil {
+	matches := s.findActionsToRun(changedFiles, logger)
+	if len(matches) == 0 {
+		logger.Debug().Msg("no matches found")
+	}
+
+	for _, i := range matches {
+		runner := s.runners[i]
+		logger.Debug().Str("action", runner.Name()).Msg("running action")
+		if err := runner.Run(ctx, logger); err != nil {
 			return err
 		}
 	}

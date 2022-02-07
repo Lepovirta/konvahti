@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rs/zerolog"
 	"gitlab.com/lepovirta/konvahti/internal/env"
 	"gitlab.com/lepovirta/konvahti/internal/git"
 	"gitlab.com/lepovirta/konvahti/internal/s3"
@@ -12,7 +11,6 @@ import (
 
 type FileSource interface {
 	Refresh(ctx context.Context) ([]string, error)
-	GetLogCtx(logger *zerolog.Logger) zerolog.Logger
 	GetDirectory() string
 }
 
