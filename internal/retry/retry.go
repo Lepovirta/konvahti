@@ -24,12 +24,12 @@ func ExponentialBackoff(min, max time.Duration) BackoffGen {
 
 type Retryable func(context.Context) error
 
-func Retry(ctx context.Context, maxAttempts int, backoffGen BackoffGen, f Retryable) error {
+func Retry(ctx context.Context, maxRetries int, backoffGen BackoffGen, f Retryable) error {
 	logger := log.Ctx(ctx)
 	var err error
 	timer := time.NewTimer(0)
 
-	for attempt := 0; attempt < maxAttempts; attempt += 1 {
+	for attempt := 0; attempt <= maxRetries; attempt += 1 {
 		select {
 		case <-ctx.Done():
 			timer.Stop()

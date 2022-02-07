@@ -51,7 +51,7 @@ func TestExecuteSuccessful(t *testing.T) {
 			Command:           []string{"reload.py", "2"},
 			PostCommand:       []string{"report.sh", "3"},
 			EnvVars:           testEnvVars,
-			MaxRetries:        3,
+			MaxRetries:        2,
 		},
 	)
 	if !assert.NoError(t, err) {
@@ -103,7 +103,7 @@ func TestExecuteFailingPreCommand(t *testing.T) {
 			PostCommand:       []string{"report.sh", "3"},
 			WorkDir:           testWorkDir,
 			EnvVars:           testEnvVars,
-			MaxRetries:        4,
+			MaxRetries:        3,
 		},
 	)
 	if !assert.NoError(t, err) {
@@ -166,7 +166,7 @@ func TestExecuteFailingCommand(t *testing.T) {
 			Command:        []string{"reload.py", "2"},
 			PostCommand:    []string{"report.sh", "3"},
 			EnvVars:        testEnvVars,
-			MaxRetries:     2,
+			MaxRetries:     1,
 		},
 	)
 	if !assert.NoError(t, err) {
@@ -223,7 +223,7 @@ func TestExecuteFailingPostCommand(t *testing.T) {
 			PostCommand:       []string{"report.sh", "3"},
 			WorkDir:           workDir,
 			EnvVars:           testEnvVars,
-			MaxRetries:        3,
+			MaxRetries:        2,
 		},
 	)
 	if !assert.NoError(t, err) {

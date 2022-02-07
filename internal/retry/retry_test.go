@@ -84,7 +84,7 @@ func TestRetryUnhappy(t *testing.T) {
 	)
 
 	assert.Error(t, err)
-	assert.Equal(t, 3, cc.nrOfCalls)
+	assert.Equal(t, 4, cc.nrOfCalls)
 }
 
 func TestRetryCancel(t *testing.T) {
