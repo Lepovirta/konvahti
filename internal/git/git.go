@@ -54,33 +54,34 @@ func (gs *GitSource) GetDirectory() string {
 }
 
 func (gs *GitSource) Refresh(ctx context.Context) ([]string, error) {
-	logger := gs.GetLogCtx(zerolog.Ctx(ctx))
+	var err error
+	logger := gs.getLogCtx(zerolog.Ctx(ctx))
 
-	if gs.repository == nil {
-		logger.Debug().Msg("no local repo found. cloning.")
-		repo, err := gs.clone(ctx)
-		if err != nil {
-			return nil, err
-		}
-		gs.repository = repo
-		return gitListCurrentFiles(repo)
+	// Repository is already set up, so we can just pull latest changes
+	if gs.repository != nil {
+		return gs.refreshExisting(ctx, logger)
 	}
 
-	prevHead, err := gs.repository.Head()
+	// Repository not set up yet, but one might already exist locally,
+	// so we can try opening it and pulling the latest changes.
+	// This is usually in situations where konvahti is rebooted.
+	logger.Debug().Msg("attempting to open local repo")
+	gs.repository, err = git.PlainOpen(gs.config.Directory)
+	if err == nil {
+		return gs.refreshExisting(ctx, logger)
+	}
+
+	// Repository not found locally, so we need to clone it first.
+	// Since we don't have any previous commit to compare changes to,
+	// we can just list the files found in the repository.
+	if err == git.ErrRepositoryNotExists {
+		logger.Debug().Msg("no local repo found. cloning.")
+		gs.repository, err = gs.clone(ctx)
+	}
 	if err != nil {
 		return nil, err
 	}
-
-	logger.Debug().Msg("fetching latest changes")
-	if err := gs.pull(ctx); err != nil {
-		if err == git.NoErrAlreadyUpToDate {
-			logger.Debug().Msg("no changes found")
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return gitListChangedFiles(gs.repository, prevHead)
+	return gitListCurrentFiles(gs.repository)
 }
 
 func gitListCurrentFiles(repo *git.Repository) (files []string, err error) {
@@ -88,8 +89,8 @@ func gitListCurrentFiles(repo *git.Repository) (files []string, err error) {
 	if err != nil {
 		return
 	}
-	commit, err := repo.CommitObject(ref.Hash())
 
+	commit, err := repo.CommitObject(ref.Hash())
 	if err != nil {
 		return
 	}
@@ -102,16 +103,46 @@ func gitListCurrentFiles(repo *git.Repository) (files []string, err error) {
 	walker := object.NewTreeWalker(tree, true, nil)
 	defer walker.Close()
 
-	for name, _, werr := walker.Next(); werr != nil; {
-		if werr != io.EOF {
-			return nil, werr
+	var name string
+	for ; err == nil; name, _, err = walker.Next() {
+		if name != "" {
+			files = append(files, name)
 		}
-		files = append(files, name)
+	}
+
+	// EOF is expected, so we don't need to propagate it as an error.
+	if err == io.EOF {
+		err = nil
 	}
 	return
 }
 
-func gitListChangedFiles(repo *git.Repository, ref *plumbing.Reference) (files []string, err error) {
+func (gs *GitSource) refreshExisting(
+	ctx context.Context,
+	logger zerolog.Logger,
+) ([]string, error) {
+	prevHead, err := gs.repository.Head()
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Debug().Msg("pulling latest changes from git remote")
+	if err := gs.pull(ctx); err != nil {
+		if err == git.NoErrAlreadyUpToDate {
+			logger.Debug().Msg("no changes found")
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return gitListChangedFiles(gs.repository, prevHead, logger)
+}
+
+func gitListChangedFiles(
+	repo *git.Repository,
+	ref *plumbing.Reference,
+	logger zerolog.Logger,
+) (files []string, err error) {
 	prevCommit, err := repo.CommitObject(ref.Hash())
 	if err != nil {
 		return
@@ -120,7 +151,6 @@ func gitListChangedFiles(repo *git.Repository, ref *plumbing.Reference) (files [
 	if err != nil {
 		return
 	}
-
 	curHead, err := repo.Head()
 	if err != nil {
 		return
@@ -137,13 +167,17 @@ func gitListChangedFiles(repo *git.Repository, ref *plumbing.Reference) (files [
 	if err != nil {
 		return
 	}
+
+	logger.Debug().
+		Str("gitHashNext", curHead.Hash().String()).
+		Msg("getting list of changed files")
 	for _, fileStat := range patch.Stats() {
 		files = append(files, fileStat.Name)
 	}
 	return
 }
 
-func (gs *GitSource) GetLogCtx(logger *zerolog.Logger) zerolog.Logger {
+func (gs *GitSource) getLogCtx(logger *zerolog.Logger) zerolog.Logger {
 	var currentCommitHash string
 	if gs.repository != nil {
 		if ref, err := gs.repository.Head(); err == nil {
