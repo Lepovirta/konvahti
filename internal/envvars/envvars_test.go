@@ -1,23 +1,20 @@
 package envvars
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
-func TestEnvVarsJSONUnmarshal(t *testing.T) {
-	j := []byte(`
-	{
-		"MESSAGE": "hello",
-		"A": "a",
-		"B": "b"
-	}
-	`)
+func TestEnvVarsYAMLUnmarshal(t *testing.T) {
+	j := []byte(`MESSAGE: hello
+A: a
+B: b
+`)
 
 	var ev EnvVars
-	err := json.Unmarshal(j, &ev)
+	err := yaml.Unmarshal(j, &ev)
 	if !assert.NoError(t, err) {
 		return
 	}

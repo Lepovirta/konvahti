@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type EnvVars []string
@@ -38,8 +40,22 @@ func (ev *EnvVars) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &envMap); err != nil {
 		return err
 	}
+	ev.FromMap(envMap)
+	return nil
+}
+
+func (ev *EnvVars) UnmarshalYAML(value *yaml.Node) error {
+	var envMap map[string]string
+
+	if err := value.Decode(&envMap); err != nil {
+		return err
+	}
+	ev.FromMap(envMap)
+	return nil
+}
+
+func (ev *EnvVars) FromMap(envMap map[string]string) {
 	for key, value := range envMap {
 		*ev = append(*ev, FromKeyValue(key, value)...)
 	}
-	return nil
 }
