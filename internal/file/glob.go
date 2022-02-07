@@ -26,7 +26,7 @@ func (m *matchAlways) Match(s string) bool {
 }
 
 func NewPathGlob(patterns []string) (glob.Glob, error) {
-	if patterns == nil {
+	if len(patterns) == 0 {
 		return &matchAlways{}, nil
 	}
 

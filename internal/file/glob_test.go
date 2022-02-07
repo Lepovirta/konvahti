@@ -60,3 +60,41 @@ func TestPathGlob(t *testing.T) {
 		)
 	}
 }
+
+func TestEmptyPathGlob(t *testing.T) {
+	testdata := []string{
+		"README.md",
+		"assets/README.md",
+		"content/index.md",
+		"assets/mymodule/mylib/main.js",
+		"assets/fun,ky.js",
+	}
+
+	glob, err := NewPathGlob([]string{})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	for i, data := range testdata {
+		assert.True(
+			t,
+			glob.Match(data),
+			`%d: empty match("%v") != true`,
+			i, data,
+		)
+	}
+
+	glob, err = NewPathGlob(nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	for i, data := range testdata {
+		assert.True(
+			t,
+			glob.Match(data),
+			`%d: nil match("%v") != true`,
+			i, data,
+		)
+	}
+}
