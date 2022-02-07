@@ -56,6 +56,8 @@ func (c *Config) Setup(stdout io.Writer, stderr io.Writer) (zerolog.Logger, erro
 		outStream = stdout
 	} else if strings.ToUpper(c.OutputStream) == "STDERR" {
 		outStream = stderr
+	} else if c.OutputStream == "" {
+		outStream = stderr
 	} else {
 		return zerolog.Nop(), fmt.Errorf("invalid output stream %s", c.OutputStream)
 	}
