@@ -21,27 +21,31 @@ const (
 type MainProgram struct {
 	env      env.Env
 	watchers []watcher.Watcher
+	logger   zerolog.Logger
 }
 
 func (m *MainProgram) Setup(
 	env env.Env,
 	configFileNames []string,
 	logConfigFileName string,
-) error {
-	logger, err := setupLogging(&env, logConfigFileName)
+) (err error) {
+	m.logger, err = setupLogging(&env, logConfigFileName)
 	if err != nil {
-		return err
+		return
 	}
 
 	var configs []watcher.Config
-	if err := readConfigs(&env, configs, configFileNames); err != nil {
-		return err
+	err = readConfigs(&env, &configs, configFileNames)
+	if err != nil {
+		return
 	}
 
+	m.logger.Debug().Msgf("found %d configs", len(configs))
 	m.watchers = make([]watcher.Watcher, len(configs))
 	for i, config := range configs {
-		if err := m.watchers[i].Setup(&env, config, logger); err != nil {
-			return err
+		err = m.watchers[i].Setup(&env, config, m.logger)
+		if err != nil {
+			return
 		}
 	}
 
@@ -57,7 +61,7 @@ func setupLogging(env *env.Env, logConfigFileName string) (logger zerolog.Logger
 			return
 		}
 	}
-	if err = envconfig.Process(appName+"_log", &logConfigFileName); err != nil {
+	if err = envconfig.Process(appName+"_log", &loggingConfig); err != nil {
 		err = fmt.Errorf("failed to read log config from env vars: %w", err)
 		return
 	}
@@ -69,21 +73,18 @@ func setupLogging(env *env.Env, logConfigFileName string) (logger zerolog.Logger
 	return
 }
 
-func readConfigs(env *env.Env, configs []watcher.Config, configFileNames []string) error {
+func readConfigs(env *env.Env, configs *[]watcher.Config, configFileNames []string) error {
 	if isSTDIN(configFileNames) {
 		if err := yaml.NewDecoder(bufio.NewReader(env.Stdin)).Decode(configs); err != nil {
 			return fmt.Errorf("failed to read configs from STDIN: %w", err)
 		}
 	} else {
-		configs := make([]watcher.Config, 0, len(configFileNames))
+		*configs = make([]watcher.Config, len(configFileNames))
 		for i, configFileName := range configFileNames {
-			if err := configs[i].FromYAMLFile(env.Fs, configFileName); err != nil {
+			if err := (*configs)[i].FromYAMLFile(env.Fs, configFileName); err != nil {
 				return fmt.Errorf("failed to read config from %s: %w", configFileName, err)
 			}
 		}
-	}
-	if err := envconfig.Process(appName, configs); err != nil {
-		return fmt.Errorf("failed to read configs from env vars: %w", err)
 	}
 	return nil
 }
@@ -100,9 +101,16 @@ func isSTDIN(configFileNames []string) bool {
 }
 
 func (m *MainProgram) Run(ctx context.Context) error {
-	var eg errgroup.Group
+	if len(m.watchers) == 0 {
+		return fmt.Errorf("no watchers configured")
+	}
+	eg, ctx := errgroup.WithContext(ctx)
+
+	m.logger.Debug().Msg("starting watchers")
 	for _, watcher := range m.watchers {
 		w := watcher
+		l := w.Logger()
+		l.Debug().Msg("starting watcher")
 		eg.Go(func() error {
 			return w.Run(ctx)
 		})
