@@ -149,6 +149,16 @@ func teardownIntegrationTest() {
 	if err := os.RemoveAll(testDataDirectory); err != nil {
 		log.Error().Err(err).Msg("failed to delete test data directory")
 	}
+
+	if err := minioClient.RemoveBucketWithOptions(
+		context.Background(),
+		s3BucketName,
+		minio.RemoveBucketOptions{
+			ForceDelete: true,
+		},
+	); err != nil {
+		log.Error().Err(err).Msg("failed to delete s3 test bucket")
+	}
 }
 
 func TestSuccessfulRunWithGit(t *testing.T) {

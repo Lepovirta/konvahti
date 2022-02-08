@@ -1,4 +1,7 @@
 #!/usr/bin/env sh
+#
+# Run MinIO for integration testing purposes
+#
 set -eu
 
 UIDGID="$(id -u):$(id -g)"
