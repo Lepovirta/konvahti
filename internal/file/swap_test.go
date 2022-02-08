@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-billy/v5/util"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,7 +47,11 @@ const (
 
 func TestSwapDirectoryOK(t *testing.T) {
 	fs := osfs.New(testDataDir)
-	defer util.RemoveAll(fs, ".")
+	defer func() {
+		if err := util.RemoveAll(fs, "."); err != nil {
+			log.Error().Err(err).Msg("failed to erase test files")
+		}
+	}()
 
 	// Prepare environment
 	if err := fs.MkdirAll(firstDirectory, 0750); !assert.NoError(t, err) {
@@ -98,7 +103,11 @@ func TestSwapDirectoryOK(t *testing.T) {
 
 func TestSwapDirectoryFail(t *testing.T) {
 	fs := osfs.New(testDataDir)
-	defer util.RemoveAll(fs, ".")
+	defer func() {
+		if err := util.RemoveAll(fs, "."); err != nil {
+			log.Error().Err(err).Msg("failed to erase test files")
+		}
+	}()
 
 	// Prepare environment
 	if err := fs.MkdirAll(firstDirectory, 0750); !assert.NoError(t, err) {

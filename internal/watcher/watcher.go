@@ -38,14 +38,13 @@ func (w *Watcher) Setup(
 	// so that all of them can be logged.
 	w.runners = make([]action.Runner, len(config.Actions))
 	for i, actionConfig := range config.Actions {
-		w.runners[i].Setup(
+		if err := w.runners[i].Setup(
 			env.Executor,
 			retryStrat,
 			actionDefaultDirectory,
 			env.EnvVars,
 			actionConfig,
-		)
-		if err != nil {
+		); err != nil {
 			return err
 		}
 	}

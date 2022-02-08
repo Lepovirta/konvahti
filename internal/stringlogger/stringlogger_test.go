@@ -34,7 +34,9 @@ func TestStringLogger(t *testing.T) {
 		if end > len(testTextBytes) {
 			end = len(testTextBytes)
 		}
-		logger.Write(testTextBytes[i:end])
+		if _, err := logger.Write(testTextBytes[i:end]); !assert.NoError(t, err) {
+			return
+		}
 	}
 	logger.Close()
 

@@ -61,8 +61,7 @@ func (s *S3Source) Refresh(ctx context.Context) ([]string, error) {
 	nextDirectoryName := timestampString()
 	nextDirectory := s.fs.Join(s.config.Directory, nextDirectoryName)
 
-	logger.Debug().Str("nextDirectory", nextDirectory).Msg("fetching latest files")
-	file.SwapDirectory(
+	if err := file.SwapDirectory(
 		s.fs,
 		s.currentDirectory,
 		nextDirectory,
@@ -79,7 +78,9 @@ func (s *S3Source) Refresh(ctx context.Context) ([]string, error) {
 			}
 			return nil
 		},
-	)
+	); err != nil {
+		return nil, err
+	}
 
 	s.lastChanges = files
 	return updated, nil

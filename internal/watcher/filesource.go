@@ -17,12 +17,16 @@ type FileSource interface {
 func fileSourceFromConfig(env *env.Env, config *Config) (FileSource, error) {
 	if config.Git != nil {
 		var s git.GitSource
-		s.Setup(*config.Git)
+		if err := s.Setup(*config.Git); err != nil {
+			return nil, err
+		}
 		return &s, nil
 	}
 	if config.S3 != nil {
 		var s s3.S3Source
-		s.Setup(env.Fs, *config.S3)
+		if err := s.Setup(env.Fs, *config.S3); err != nil {
+			return nil, err
+		}
 		return &s, nil
 	}
 	return nil, fmt.Errorf("no remote source specified for config %s", config.Name)
