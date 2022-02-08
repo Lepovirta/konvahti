@@ -48,8 +48,9 @@ func (s *S3Source) GetDirectory() string {
 }
 
 func (s *S3Source) Refresh(ctx context.Context) ([]string, error) {
-	logger := s.GetLogCtx(zerolog.Ctx(ctx))
+	logger := s.getLogCtx(zerolog.Ctx(ctx))
 
+	logger.Debug().Msg("fetching list of files in S3")
 	files, err := s.listFiles(ctx)
 	if err != nil {
 		return nil, err
@@ -57,11 +58,10 @@ func (s *S3Source) Refresh(ctx context.Context) ([]string, error) {
 
 	updated, existing := s.lastChanges.Updated(files)
 
-	nextDirectory := s.fs.Join(
-		s.config.Directory,
-		timestampString(),
-	)
+	nextDirectoryName := timestampString()
+	nextDirectory := s.fs.Join(s.config.Directory, nextDirectoryName)
 
+	logger.Debug().Str("nextDirectory", nextDirectory).Msg("fetching latest files")
 	file.SwapDirectory(
 		s.fs,
 		s.currentDirectory,
@@ -189,7 +189,7 @@ func (s *S3Source) objectKeyToFilename(key string) string {
 	return filename
 }
 
-func (s *S3Source) GetLogCtx(logger *zerolog.Logger) zerolog.Logger {
+func (s *S3Source) getLogCtx(logger *zerolog.Logger) zerolog.Logger {
 	return logger.With().
 		Str("s3Endpoint", s.config.Endpoint).
 		Str("s3BucketName", s.config.BucketName).
