@@ -54,20 +54,27 @@ func (gs *GitSource) GetDirectory() string {
 }
 
 func (gs *GitSource) Refresh(ctx context.Context) ([]string, error) {
-	var err error
-	logger := gs.getLogCtx(zerolog.Ctx(ctx))
+	// Repository not set up yet -> initialize it
+	if gs.repository == nil {
+		return gs.refreshInit(ctx)
+	}
 
 	// Repository is already set up, so we can just pull latest changes
-	if gs.repository != nil {
-		return gs.refreshExisting(ctx, logger)
-	}
+	logger := gs.getLogCtx(zerolog.Ctx(ctx))
+	logger.Info().Msg("refreshing files from Git")
+	return gs.refreshExisting(ctx, logger)
+}
+
+func (gs *GitSource) refreshInit(ctx context.Context) ([]string, error) {
+	var err error
 
 	// Repository not set up yet, but one might already exist locally,
 	// so we can try opening it and pulling the latest changes.
 	// This is usually in situations where konvahti is rebooted.
-	logger.Debug().Msg("attempting to open local repo")
 	gs.repository, err = git.PlainOpen(gs.config.Directory)
 	if err == nil {
+		logger := gs.getLogCtx(zerolog.Ctx(ctx))
+		logger.Info().Msg("refreshing files from a Git repo found on file system")
 		return gs.refreshExisting(ctx, logger)
 	}
 
@@ -75,12 +82,14 @@ func (gs *GitSource) Refresh(ctx context.Context) ([]string, error) {
 	// Since we don't have any previous commit to compare changes to,
 	// we can just list the files found in the repository.
 	if err == git.ErrRepositoryNotExists {
-		logger.Debug().Msg("no local repo found. cloning.")
 		gs.repository, err = gs.clone(ctx)
 	}
 	if err != nil {
 		return nil, err
 	}
+
+	logger := gs.getLogCtx(zerolog.Ctx(ctx))
+	logger.Info().Msg("providing list of files cloned from Git")
 	return gitListCurrentFiles(gs.repository)
 }
 
@@ -186,6 +195,7 @@ func (gs *GitSource) getLogCtx(logger *zerolog.Logger) zerolog.Logger {
 	}
 
 	return logger.With().
+		Str("stage", "refresh").
 		Str("gitUrl", gs.cloneOptions.URL).
 		Str("gitBranch", gs.config.Branch).
 		Str("gitHash", currentCommitHash).

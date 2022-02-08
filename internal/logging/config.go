@@ -35,6 +35,8 @@ func (c *Config) FromYAMLFile(fs billy.Filesystem, filename string) error {
 }
 
 func (c *Config) Setup(stdout io.Writer, stderr io.Writer) (zerolog.Logger, error) {
+	var err error
+
 	// Globals
 	if c.TimestampFieldName != "" {
 		zerolog.TimestampFieldName = c.TimestampFieldName
@@ -42,13 +44,16 @@ func (c *Config) Setup(stdout io.Writer, stderr io.Writer) (zerolog.Logger, erro
 	if c.TimestampFormat != "" {
 		zerolog.TimeFieldFormat = c.TimestampFormat
 	}
-	if c.Level != "" {
-		level, err := c.parseLevel()
+	var level zerolog.Level
+	if c.Level == "" {
+		level = zerolog.InfoLevel
+	} else {
+		level, err = c.parseLevel()
 		if err != nil {
 			return zerolog.Nop(), err
 		}
-		zerolog.SetGlobalLevel(level)
 	}
+	zerolog.SetGlobalLevel(level)
 
 	// Logger customization
 	var outStream io.Writer

@@ -76,6 +76,11 @@ func setupIntegrationTest() error {
 	var err error
 	ctx := context.Background()
 
+	// Enable debug logging for integration tests
+	if err := os.Setenv("KONVAHTI_LOG_LEVEL", "debug"); err != nil {
+		return err
+	}
+
 	// Set up Minio client for S3 access
 	if address, ok := os.LookupEnv("MINIO_ENDPOINT"); ok {
 		s3Endpoint = address

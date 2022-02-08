@@ -106,11 +106,8 @@ func (m *MainProgram) Run(ctx context.Context) error {
 	}
 	eg, ctx := errgroup.WithContext(ctx)
 
-	m.logger.Debug().Msg("starting watchers")
 	for _, watcher := range m.watchers {
 		w := watcher
-		l := w.Logger()
-		l.Debug().Msg("starting watcher")
 		eg.Go(func() error {
 			return w.Run(ctx)
 		})

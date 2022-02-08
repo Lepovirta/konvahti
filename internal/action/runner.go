@@ -81,6 +81,8 @@ func (r *Runner) Run(
 	logger zerolog.Logger,
 ) (execErr error) {
 	logCtx := logger.With().Str("action", r.config.Name)
+	logger = logCtx.Logger()
+	logger.Debug().Msg("executing command")
 
 	if r.config.PreCommand != nil {
 		execErr = retry.Retry(
@@ -145,7 +147,13 @@ func (r *Runner) Run(
 
 	if execErr != nil {
 		logger := logCtx.Logger()
-		logger.Error().Err(execErr).Msg("action failed")
+		logger.Error().Err(execErr).
+			Str("event", "action_failed").
+			Msg("action execution failed")
+	} else {
+		logger.Info().
+			Str("event", "action_success").
+			Msg("action executed successfully")
 	}
 
 	return
@@ -158,6 +166,9 @@ func (r *Runner) runCommand(
 	extraEnvVars envvars.EnvVars,
 ) error {
 	logCtx = logCtx.Array("command", strSliceToZerologArr(command))
+	logger := logCtx.Logger()
+
+	logger.Debug().Msg("running command")
 	returnCode, err := r.executor.Run(
 		ctx,
 		exec.Command{
@@ -169,7 +180,7 @@ func (r *Runner) runCommand(
 		lineLogger(logCtx.Str("event", "stderr")),
 	)
 	logCtx = logCtx.Int("returnCode", returnCode)
-	logger := logCtx.Logger()
+	logger = logCtx.Logger()
 
 	if err != nil {
 		logEvent := logger.
@@ -179,10 +190,14 @@ func (r *Runner) runCommand(
 		if err == context.DeadlineExceeded {
 			logEvent.Str("event", "deadline_exceeded").Msg("deadline exceeded")
 		} else {
-			logEvent.Str("event", "command_error").Msg("command execution error")
+			logEvent.Str("event", "command_failed").Msg("command execution failed")
 		}
 		return err
 	}
+
+	logger.Debug().
+		Str("event", "command_success").
+		Msg("command executed successfully")
 	return nil
 }
 

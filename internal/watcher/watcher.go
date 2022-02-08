@@ -2,10 +2,10 @@ package watcher
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"gitlab.com/lepovirta/konvahti/internal/action"
 	"gitlab.com/lepovirta/konvahti/internal/env"
 	"gitlab.com/lepovirta/konvahti/internal/retry"
@@ -52,7 +52,7 @@ func (w *Watcher) Setup(
 
 	w.env = env
 	w.config = config
-	w.logger = logger.With().Str("configName", config.Name).Logger()
+	w.logger = logger.With().Str("watcher", config.Name).Logger()
 	return
 }
 
@@ -74,7 +74,9 @@ func (s *Watcher) Run(ctx context.Context) error {
 		default:
 			// Errors are not propagated here so that we can
 			// try again after the interval has elapsed.
-			_ = s.runOnce(ctx)
+			if err := s.runOnce(ctx); err != nil {
+				s.logger.Error().Err(err).Msg("watcher failed")
+			}
 			time.Sleep(s.config.Interval)
 		}
 	}
@@ -87,23 +89,22 @@ func (s *Watcher) runOnce(ctx context.Context) error {
 	refreshCtx, refreshCancel := s.config.ctxWithRefreshTimeout(ctx)
 	defer refreshCancel()
 
-	log.Debug().Str("stage", "refresh").Msg("refreshing file source")
 	changedFiles, err := s.fileSource.Refresh(refreshCtx)
 	if err != nil {
-		return err
+		return fmt.Errorf("refreshing file source failed: %w", err)
 	}
-	log.Debug().Msgf("%d file changes found", len(changedFiles))
+	logger.Debug().Msgf("%d file changes found", len(changedFiles))
 
 	matches := s.findActionsToRun(changedFiles, logger)
 	if len(matches) == 0 {
-		logger.Debug().Msg("no matches found")
+		logger.Debug().Msg("no matches found -> no actions to run")
+		return nil
 	}
 
 	for _, i := range matches {
 		runner := s.runners[i]
-		logger.Debug().Str("action", runner.Name()).Msg("running action")
 		if err := runner.Run(ctx, logger); err != nil {
-			return err
+			return fmt.Errorf("runner %s failed: %w", runner.Name(), err)
 		}
 	}
 
@@ -117,7 +118,6 @@ func (s *Watcher) findActionsToRun(
 	actionsToRun = make([]int, 0, len(s.runners))
 	for i, runner := range s.runners {
 		if filename := runner.MatchAny(changedFiles); filename != "" {
-			logger.Debug().Str("filename", filename).Str("action", runner.Name()).Msg("match found")
 			actionsToRun = append(actionsToRun, i)
 		}
 	}

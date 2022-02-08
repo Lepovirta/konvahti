@@ -49,8 +49,8 @@ func (s *S3Source) GetDirectory() string {
 
 func (s *S3Source) Refresh(ctx context.Context) ([]string, error) {
 	logger := s.getLogCtx(zerolog.Ctx(ctx))
+	logger.Info().Msg("refreshing files from S3")
 
-	logger.Debug().Msg("fetching list of files in S3")
 	files, err := s.listFiles(ctx)
 	if err != nil {
 		return nil, err
@@ -191,6 +191,7 @@ func (s *S3Source) objectKeyToFilename(key string) string {
 
 func (s *S3Source) getLogCtx(logger *zerolog.Logger) zerolog.Logger {
 	return logger.With().
+		Str("stage", "refresh").
 		Str("s3Endpoint", s.config.Endpoint).
 		Str("s3BucketName", s.config.BucketName).
 		Str("s3BucketPrefix", s.config.BucketPrefix).
