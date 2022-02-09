@@ -21,12 +21,15 @@ Example usage:
   # Run konvahti with multiple configurations
   konvahti config1.yaml config2.yaml
 
+  # Run konvahti with configurations loaded from STDIN
+  konvahti -
+
   # Run konvahti with custom log configuration file
   konvahti -logConfig logconfig.yaml config.yaml
 
 Environment variables:
   KONVAHTI_LOG_LEVEL
-        Logging level to use:
+        The lowest priority level logs to include in the log output:
         trace, debug, info, warn, error, fatal, panic, disabled
 
   KONVAHTI_LOG_ENABLEPRETTYLOGGING
