@@ -40,7 +40,7 @@ var (
 
 const (
 	testDataDir = "_testdata"
-	currentDirectory = "/var/lib/stuff/current"
+	latestDirectory = "/var/lib/stuff/latest"
 	firstDirectory = "/var/lib/stuff/first"
 	secondDirectory = "/var/lib/stuff/second"
 )
@@ -57,7 +57,7 @@ func TestSwapDirectoryOK(t *testing.T) {
 	if err := fs.MkdirAll(firstDirectory, 0750); !assert.NoError(t, err) {
 		return
 	}
-	if err := fs.Symlink(filepath.Base(firstDirectory), currentDirectory); !assert.NoError(t, err) {
+	if err := fs.Symlink(filepath.Base(firstDirectory), latestDirectory); !assert.NoError(t, err) {
 		return
 	}
 
@@ -71,7 +71,7 @@ func TestSwapDirectoryOK(t *testing.T) {
 		}
 	}
 
-	// Swap second to current
+	// Swap second to latest
 	writeFiles := func(tempFs billy.Filesystem) error {
 		for _, testFile := range testFiles[1:] {
 			if err := tempFs.MkdirAll(filepath.Dir(testFile.name), 0750); !assert.NoError(t, err) {
@@ -83,20 +83,20 @@ func TestSwapDirectoryOK(t *testing.T) {
 		}
 		return nil
 	}
-	if err := SwapDirectory(fs, currentDirectory, secondDirectory, writeFiles); !assert.NoError(t, err) {
+	if err := SwapDirectory(fs, latestDirectory, secondDirectory, writeFiles); !assert.NoError(t, err) {
 		return
 	}
 
-	// Check that current directory contains only second directory contents
+	// Check that the latest directory contains only second directory contents
 	for _, testFile := range testFiles[1:] {
-		filename := fs.Join(currentDirectory, testFile.name)
+		filename := fs.Join(latestDirectory, testFile.name)
 		data, err := util.ReadFile(fs, filename)
 		if !assert.NoError(t, err) {
 			t.Logf("file: %s", filename)
 		}
 		assert.Equal(t, testFile.data, data)
 	}
-	if _, err := fs.Stat(fs.Join(currentDirectory, testFiles[0].name)); assert.Error(t, err) {
+	if _, err := fs.Stat(fs.Join(latestDirectory, testFiles[0].name)); assert.Error(t, err) {
 		assert.True(t, os.IsNotExist(err))
 	}
 }
@@ -113,7 +113,7 @@ func TestSwapDirectoryFail(t *testing.T) {
 	if err := fs.MkdirAll(firstDirectory, 0750); !assert.NoError(t, err) {
 		return
 	}
-	if err := fs.Symlink(filepath.Base(firstDirectory), currentDirectory); !assert.NoError(t, err) {
+	if err := fs.Symlink(filepath.Base(firstDirectory), latestDirectory); !assert.NoError(t, err) {
 		return
 	}
 
@@ -127,7 +127,7 @@ func TestSwapDirectoryFail(t *testing.T) {
 		}
 	}
 
-	// Swap second to current
+	// Swap second to latest
 	writeFiles := func(tempFs billy.Filesystem) error {
 		for i, testFile := range testFiles[1:] {
 			if i > 1 {
@@ -143,20 +143,20 @@ func TestSwapDirectoryFail(t *testing.T) {
 		}
 		return nil
 	}
-	if err := SwapDirectory(fs, currentDirectory, secondDirectory, writeFiles); assert.Error(t, err) {
+	if err := SwapDirectory(fs, latestDirectory, secondDirectory, writeFiles); assert.Error(t, err) {
 		assert.Equal(t, errExpected, err)
 	}
 
-	// Check that current directory contains only first directory contents
+	// Check that the latest directory contains only first directory contents
 	for _, testFile := range testFiles[:3] {
-		filename := fs.Join(currentDirectory, testFile.name)
+		filename := fs.Join(latestDirectory, testFile.name)
 		data, err := util.ReadFile(fs, filename)
 		if !assert.NoError(t, err) {
 			t.Logf("file: %s", filename)
 		}
 		assert.Equal(t, testFile.data, data)
 	}
-	if _, err := fs.Stat(fs.Join(currentDirectory, testFiles[3].name)); assert.Error(t, err) {
+	if _, err := fs.Stat(fs.Join(latestDirectory, testFiles[3].name)); assert.Error(t, err) {
 		assert.True(t, os.IsNotExist(err))
 	}
 

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	currentLinkName = "current"
+	latestLinkName = "latest"
 )
 
 type S3Source struct {
@@ -24,7 +24,7 @@ type S3Source struct {
 	config           Config
 	minioClient      *minio.Client
 	lastChanges      stat.Stat
-	currentDirectory string
+	latestDirectory string
 }
 
 func (s *S3Source) Setup(fs billy.Filesystem, config Config) (err error) {
@@ -36,16 +36,15 @@ func (s *S3Source) Setup(fs billy.Filesystem, config Config) (err error) {
 	if err != nil {
 		return
 	}
-
 	s.fs = fs
 	s.config = config
 	s.lastChanges = nil
-	s.currentDirectory = fs.Join(config.Directory, currentLinkName)
+	s.latestDirectory = fs.Join(config.Directory, latestLinkName)
 	return nil
 }
 
 func (s *S3Source) GetDirectory() string {
-	return s.currentDirectory
+	return s.latestDirectory
 }
 
 func (s *S3Source) Refresh(ctx context.Context) ([]string, error) {
@@ -64,7 +63,7 @@ func (s *S3Source) Refresh(ctx context.Context) ([]string, error) {
 
 	if err := file.SwapDirectory(
 		s.fs,
-		s.currentDirectory,
+		s.latestDirectory,
 		nextDirectory,
 		func(fs billy.Filesystem) error {
 			for _, objectKey := range updated {
@@ -138,7 +137,7 @@ func (s *S3Source) copyLocalFile(
 		}
 	}()
 
-	sourceFile, err := s.fs.Open(s.fs.Join(s.currentDirectory, filename))
+	sourceFile, err := s.fs.Open(s.fs.Join(s.latestDirectory, filename))
 	if err != nil {
 		return err
 	}
