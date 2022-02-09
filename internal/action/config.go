@@ -25,9 +25,6 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
-	if c.Name == "" {
-		return fmt.Errorf("no action name specified")
-	}
 	if len(c.Command) == 0 {
 		return fmt.Errorf("no action command specified for action %s", c.Name)
 	}

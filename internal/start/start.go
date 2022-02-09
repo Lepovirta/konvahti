@@ -84,6 +84,12 @@ func readConfigs(env *env.Env, configs *[]watcher.Config, configFileNames []stri
 			if err := (*configs)[i].FromYAMLFile(env.Fs, configFileName); err != nil {
 				return fmt.Errorf("failed to read config from %s: %w", configFileName, err)
 			}
+			if (*configs)[i].Name == "" {
+				(*configs)[i].Name = fmt.Sprintf("%d", i)
+			}
+			if err := (*configs)[i].Validate(); err != nil {
+				return fmt.Errorf("invalid configuration %d - %s: %w", i, (*configs)[i].Name, err)
+			}
 		}
 	}
 	return nil

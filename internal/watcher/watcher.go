@@ -38,6 +38,9 @@ func (w *Watcher) Setup(
 	// so that all of them can be logged.
 	w.runners = make([]action.Runner, len(config.Actions))
 	for i, actionConfig := range config.Actions {
+		if actionConfig.Name == "" {
+			actionConfig.Name = fmt.Sprintf("%d", i)
+		}
 		if err := w.runners[i].Setup(
 			env.Executor,
 			retryStrat,

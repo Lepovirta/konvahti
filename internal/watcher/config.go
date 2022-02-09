@@ -38,22 +38,21 @@ func (c *Config) FromYAMLFile(fs billy.Filesystem, filename string) error {
 }
 
 func (c *Config) Validate() error {
-	if c.Name == "" {
-		return fmt.Errorf("no name specified")
+	if c.Git == nil && c.S3 == nil {
+		return fmt.Errorf("no remote source specified")
 	}
-
-	if err := onlyOneNonNil("source", c.Git, c.S3); err != nil {
-		return err
+	if c.Git != nil && c.S3 != nil {
+		return fmt.Errorf("too many remote sources specified")
 	}
 
 	if c.Git != nil {
 		if err := c.Git.Validate(); err != nil {
-			return err
+			return fmt.Errorf("invalid git remote source: %w", err)
 		}
 	}
 	if c.S3 != nil {
 		if err := c.S3.Validate(); err != nil {
-			return err
+			return fmt.Errorf("invalid s3 remote source: %w", err)
 		}
 	}
 
@@ -63,26 +62,10 @@ func (c *Config) Validate() error {
 
 	for i, action := range c.Actions {
 		if err := action.Validate(); err != nil {
-			return fmt.Errorf("invalid action %d: %w", i, err)
+			return fmt.Errorf("invalid action %d - %s: %w", i, action.Name, err)
 		}
 	}
 
-	return nil
-}
-
-func onlyOneNonNil(what string, items ...interface{}) error {
-	nonNilCount := 0
-	for i := range items {
-		if items[i] != nil {
-			nonNilCount += 1
-		}
-		if nonNilCount > 1 {
-			return fmt.Errorf("more than one %s specified", what)
-		}
-	}
-	if nonNilCount == 0 {
-		return fmt.Errorf("no %ss specified", what)
-	}
 	return nil
 }
 
