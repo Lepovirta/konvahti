@@ -27,8 +27,8 @@ func (c *Config) Validate() error {
 	if c.BucketName == "" {
 		return fmt.Errorf("no S3 bucket name specified")
 	}
-	if c.BucketPrefix == "" {
-		return fmt.Errorf("no S3 bucket path specified")
+	if c.Directory == "" {
+		return fmt.Errorf("no local directory specified")
 	}
 	return nil
 }

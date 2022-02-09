@@ -25,6 +25,9 @@ func (c *Config) Validate() error {
 	if c.Branch == "" {
 		return fmt.Errorf("no Git branch specified")
 	}
+	if c.Directory == "" {
+		return fmt.Errorf("no local directory specified")
+	}
 	return nil
 }
 
