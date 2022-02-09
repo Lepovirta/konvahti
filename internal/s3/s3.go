@@ -28,6 +28,7 @@ type S3Source struct {
 }
 
 func (s *S3Source) Setup(fs billy.Filesystem, config Config) (err error) {
+	config.sanitizeBucketPrefix()
 	s.minioClient, err = minio.New(config.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(config.AccessKeyId, config.SecretAccessKey, ""),
 		Secure: !config.DisableTLS,

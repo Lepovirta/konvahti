@@ -2,6 +2,7 @@ package s3
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Config struct {
@@ -31,4 +32,16 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("no local directory specified")
 	}
 	return nil
+}
+
+func (c *Config) sanitizeBucketPrefix() {
+	c.BucketPrefix = sanitizeBucketPrefix(c.BucketPrefix)
+}
+
+func sanitizeBucketPrefix(bucketPrefix string) string {
+	trimmedPrefix := strings.Trim(bucketPrefix, "/")
+	if trimmedPrefix == "" {
+		return "/"
+	}
+	return fmt.Sprintf("/%s/", trimmedPrefix)
 }
