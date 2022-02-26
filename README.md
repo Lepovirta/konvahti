@@ -28,14 +28,14 @@ Konvahti can be run using any user that has permissions to write files to the di
 
 ## How it works
 
-For each configuration, Konvahti follows this simple algorithm:
+For each watcher configuration, Konvahti follows this simple algorithm:
 
 1. Pull latest files from a remote source to a local directory.
 2. Check which actions should be run based on the file changes.
 3. Run the commands of each matching action.
 4. Repeat the cycle after specified time (interval) has elapsed.
 
-When more than one configuration is specified, the above algorithm is ran for each configuration concurrently.
+When more than one watcher configuration is specified, the above algorithm is ran for each configuration concurrently.
 
 ## Installation
 
@@ -53,27 +53,18 @@ Binary releases will be coming soon.
 
 Konvahti accepts the following command-line arguments:
 
-* `-logConfig` flag followed by a path to a log configuration file.
-  The log configuration file can be used for tuning various logging settings.
-  See the log configuration section for further details.
-* Each positional argument is interpreted as a path to a configuration file for Konvahti itself.
-  Konvahti can read multiple configuration files at once and launch a process for each one.
+* `-config` flag followed by a path to a configuration file for Konvahti.
+  When set to `-` or `STDIN`, the configuration is read from the STDIN stream.
   See the configuration section for further details.
 
 Examples:
 
-```
-# Run konvahti with a single configuration
-konvahti config.yaml
-
-# Run konvahti with multiple configurations
-konvahti config1.yaml config2.yaml
+```shell
+# Run konvahti with a configuration file
+konvahti -config config.yaml
 
 # Run konvahti with configurations loaded from STDIN
-konvahti -
-
-# Run konvahti with custom log configuration file
-konvahti -logConfig logconfig.yaml config.yaml
+cat config.yaml | konvahti -config -
 ```
 
 ## Configuration
@@ -81,44 +72,82 @@ konvahti -logConfig logconfig.yaml config.yaml
 Konvahti is configured using [YAML](https://www.redhat.com/en/topics/automation/what-is-yaml) formatted files.
 In the root of the configuration, you can specify the following settings.
 
+**`watcher` (required):**
+* List of watcher configurations
+* At least one configuration is required
+* All of the watchers are launched concurrently
+* See the "Watcher" section below for more information
+
+**`log` (optional):**
+* Logging configuration to help tune the log output
+* See the "Logging" section below for more information
+
+### Watcher
+
+A single watcher configuration specifies the remote source for files and the commands to run when those files change.
+The watcher configurations are specified in the YAML field `watchers`.
+The following settings are available.
+
 **`interval` (optional):**
 * How long to wait between each cycle.
 * Accepts a string value in [Go duration format](https://pkg.go.dev/time#ParseDuration).
 * When not set, the cycle is only ran once.
+* Environment variable: `KONVAHTI_WATCHERS_N_INTERVAL` where `N` is the position of the watcher in the configuration.
 
 **`refreshTimeout` (optional):**
 
 * How long to allow Konvahti to wait for fetching the latest files from the remote source.
 * Accepts a string value in [Go duration format](https://pkg.go.dev/time#ParseDuration).
 * No timeout is used when this is not set.
+* Environment variable: `KONVAHTI_WATCHERS_N_REFRESHTIMEOUT` where `N` is the position of the watcher in the configuration.
 
 **`name` (optional):**
 
 * Name of the configuration used for logging purposes.
 * You can use any string value you like.
 * By default, the index of the configuration is used here.
+* Environment variable: `KONVAHTI_WATCHERS_N_NAME` where `N` is the position of the watcher in the configuration.
 
-Additionally, you can specify the settings listed below.
-At least one of the remote source and an action must be specified.
+**`git` (optional):**
+
+* Settings for a Git remote source
+* Either this or the `s3` config must be specified
+* See the "Git" section below for more information
+
+**`s3` (optional):**
+
+* Settings for a S3 remote source
+* Either this or the `git` config must be specified
+* See the "S3" section below for more information
+
+**`actions` (optional):**
+
+* List of actions to run when the remote source contents are fetched and changes are found
+* At least one action must be specified
+* See the "Actions" section below for more information
 
 ### Git
 
 You can use a Git repository as a remote source for files to fetch on each cycle.
 The Git configuration is specified in the YAML field `git`.
-The field can contain the following settings.
+The following settings are available.
 
 **`url` (required):**
 
 * The URL for the remote Git repository
+* Environment variable: `KONVAHTI_WATCHERS_N_GIT_URL` where `N` is the position of the watcher in the configuration.
 
 **`branch` (required):**
 
 * The name of the branch to track from the Git repository
 * For example: `main`
+* Environment variable: `KONVAHTI_WATCHERS_N_GIT_BRANCH` where `N` is the position of the watcher in the configuration.
 
 **`directory` (required):**
 
 * The local directory where the Git repository is to be cloned to
+* Environment variable: `KONVAHTI_WATCHERS_N_GIT_DIRECTORY` where `N` is the position of the watcher in the configuration.
+
 
 **`httpAuth` (optional):**
 
@@ -127,6 +156,10 @@ The field can contain the following settings.
 * `password`: Password for the HTTP basic authentication
 * `token`: Token for HTTP token authentication. Supports OAuth bearer tokens.
 * Use the username and password for GitHub, BitBucket, and GitLab instead of the token.
+* Environment variables (`N` is the position of the watcher in the configuration)
+  * `KONVAHTI_WATCHERS_N_GIT_HTTPAUTH_USERNAME`
+  * `KONVAHTI_WATCHERS_N_GIT_HTTPAUTH_PASSWORD`
+  * `KONVAHTI_WATCHERS_N_GIT_HTTPAUTH_TOKEN`
 
 **`sshAuth` (optional):**
 
@@ -134,36 +167,45 @@ The field can contain the following settings.
 * `username`: Username for SSH authentication
 * `keyPath`: Path to a SSH key on the file system to use for SSH authentication
 * `keyPassword`: Password for the SSH key
+* Environment variables (`N` is the position of the watcher in the configuration)
+  * `KONVAHTI_WATCHERS_N_GIT_SSHAUTH_USERNAME`
+  * `KONVAHTI_WATCHERS_N_GIT_SSHAUTH_KEYPATH`
+  * `KONVAHTI_WATCHERS_N_GIT_SSHAUTH_KEYPASSWORD`
 
 ### S3
 
 You can use a S3 bucket as a remote source for files to fetch on each cycle.
 The names of the S3 objects are used as the local file paths.
 The S3 configuration is specified in the YAML field `s3`.
-The field can contain the following settings.
+The following settings are available.
 
 **`endpoint` (required):**
 
 * Endpoint URL for S3.
 * If you plan on using AWS S3, see the [list of endpoints they provide](https://docs.aws.amazon.com/general/latest/gr/s3.html).
 * If you plan on using a S3 compatible service, see the service provider's documentation for more details.
+* Environment variable: `KONVAHTI_WATCHERS_N_S3_ENDPOINT` where `N` is the position of the watcher in the configuration.
 
 **`accessKeyId` (required):**
 
 * The ID part of the access key used for accessing S3
+* Environment variable: `KONVAHTI_WATCHERS_N_S3_ACCESSKEYID` where `N` is the position of the watcher in the configuration.
 
 **`secretAccessKey` (required):**
 
 * The secret part of the access key used for accessing S3
+* Environment variable: `KONVAHTI_WATCHERS_N_S3_SECRETACCESSKEY` where `N` is the position of the watcher in the configuration.
 
 **`bucketName` (required):**
 
 * Name of the S3 bucket to pull files from
+* Environment variable: `KONVAHTI_WATCHERS_N_S3_BUCKETNAME` where `N` is the position of the watcher in the configuration.
 
 **`directory` (required):**
 
 * The local directory to use for storing all of the fetched S3 files
 * Note that the latest S3 files will be found from the sub-directory `latest`
+* Environment variable: `KONVAHTI_WATCHERS_N_S3_DIRECTORY` where `N` is the position of the watcher in the configuration.
 
 **`bucketPrefix` (optional):**
 
@@ -171,12 +213,14 @@ The field can contain the following settings.
 * You can use this to limit fetching only certain "directory" of files from S3
 * The prefix is automatically substracted from the local file paths
 * By default, all files from the bucket are fetched
+* Environment variable: `KONVAHTI_WATCHERS_N_S3_BUCKETPREFIX` where `N` is the position of the watcher in the configuration.
 
 **`disableTls` (optional):**
 
 * When set to `true`, TLS certificate checking is disabled
 * This is intended for testing purposes only
 * Default value: `false`
+* Environment variable: `KONVAHTI_WATCHERS_N_S3_DISABLETLS` where `N` is the position of the watcher in the configuration.
 
 ### Actions
 
@@ -184,7 +228,7 @@ After fetching the latest files from the remote source, the list of changed file
 When there's a match, the action's commands are run.
 The list of actions can be specified in the YAML field `actions`.
 At least one action must be specified.
-The field accepts a list of entries that have the following fields.
+The following settings are available.
 
 **`matchFiles` (optional):**
 
@@ -250,92 +294,10 @@ The field accepts a list of entries that have the following fields.
 * You can use any string value you like.
 * By default, the index of the action in the list is used here.
 
-### Examples
+### Logging
 
-Using Git remote
-
-```yaml
-name: mystuff
-interval: 1m
-refreshTimeout: 2m
-
-git:
-  url: https://github.com/exampleorg/example.git
-  branch: main
-  directory: /var/lib/konvahti/mystuff
-  httpAuth:
-    username: myusername
-    password: supersecretpassword
-
-actions:
-
-  - name: documentation
-    matchFiles:
-      - docs/*.md
-    inheritEnvVars:
-      - PATH
-    workDirectory: docs
-    command:
-      - updatedocs
-    postCommand:
-      - report_to_slack.sh
-      - docs
-    maxRetries: 2
-    timeout: 1m
-
-  - name: deploy myapp
-    matchFiles:
-      - apps/myapp/config.yaml
-    inheritAllEnvVars: true
-    workDirectory: apps/myapp/
-    preCommand:
-      - prepare_app_env.py
-    command:
-      - deploy_app.py
-    postCommand:
-      - report_to_slack.sh
-      - myapp
-    maxRetries: 5
-    timeout: 5m
-```
-
-Using S3 remote
-
-```yaml
-name: mystuff
-interval: 1m
-refreshTimeout: 2m
-
-s3:
-  endpoint: s3.eu-central-1.amazonaws.com
-  accessKeyId: MYSUPERCOOLACCESSKEYID
-  secretAccessKey: MYSUPERSECRETACCESSKEY
-  bucketName: mysupercoolconfigbucket
-  bucketPrefix: /mystuff/
-  directory: /var/lib/konvahti/mystuff
-
-actions:
-  - name: deploy myapp
-    matchFiles:
-      - apps/myapp/config.yaml
-    inheritAllEnvVars: true
-    workDirectory: apps/myapp/
-    preCommand:
-      - prepare_app_env.py
-    command:
-      - deploy_app.py
-    postCommand:
-      - report_to_slack.sh
-      - myapp
-    maxRetries: 5
-    timeout: 5m
-```
-
-## Log configuration
-
-Log configuration can also be specified in YAML format.
-Each setting can also be read from environment variables.
-The following settings are available:
+Logging can be tuned using the `log` field in the root of the configuration file.
+The following settings are available.
 
 **`level` (optional):**
 
@@ -374,12 +336,87 @@ The following settings are available:
 
 ### Example
 
+Using both Git remote and S3 remote.
+
 ```yaml
-level: debug
-enablePrettyLogging: true
-outputStream: stdout
-timestampFormat: UNIXMS
-timestampFieldName: timestamp
+log:
+  level: debug
+  enablePrettyLogging: true
+  outputStream: stdout
+  timestampFormat: UNIXMS
+  timestampFieldName: timestamp
+
+watchers:
+  - name: git_stuff
+    interval: 1m
+    refreshTimeout: 2m
+
+    git:
+      url: https://github.com/exampleorg/example.git
+      branch: main
+      directory: /var/lib/konvahti/gitstuff
+      httpAuth:
+        username: myusername
+        password: supersecretpassword
+
+    actions:
+
+      - name: documentation
+        matchFiles:
+          - docs/*.md
+        inheritEnvVars:
+          - PATH
+        workDirectory: docs
+        command:
+          - updatedocs
+        postCommand:
+          - report_to_slack.sh
+          - docs
+        maxRetries: 2
+        timeout: 1m
+
+      - name: deploy myapp
+        matchFiles:
+          - apps/myapp/config.yaml
+        inheritAllEnvVars: true
+        workDirectory: apps/myapp/
+        preCommand:
+          - prepare_app_env.py
+        command:
+          - deploy_app.py
+        postCommand:
+          - report_to_slack.sh
+          - myapp
+        maxRetries: 5
+        timeout: 5m
+
+  - name: s3_stuff
+    interval: 1m
+    refreshTimeout: 2m
+
+    s3:
+      endpoint: s3.eu-central-1.amazonaws.com
+      accessKeyId: MYSUPERCOOLACCESSKEYID
+      secretAccessKey: MYSUPERSECRETACCESSKEY
+      bucketName: mysupercoolconfigbucket
+      bucketPrefix: /mystuff/
+      directory: /var/lib/konvahti/s3stuff
+
+    actions:
+      - name: deploy myapp
+        matchFiles:
+          - apps/myapp/config.yaml
+        inheritAllEnvVars: true
+        workDirectory: apps/myapp/
+        preCommand:
+          - prepare_app_env.py
+        command:
+          - deploy_app.py
+        postCommand:
+          - report_to_slack.sh
+          - myapp
+        maxRetries: 5
+        timeout: 5m
 ```
 
 ## License

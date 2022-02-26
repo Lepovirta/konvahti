@@ -76,11 +76,6 @@ func setupIntegrationTest() error {
 	var err error
 	ctx := context.Background()
 
-	// Enable debug logging for integration tests
-	if err := os.Setenv("KONVAHTI_LOG_LEVEL", "debug"); err != nil {
-		return err
-	}
-
 	// Set up Minio client for S3 access
 	if address, ok := os.LookupEnv("MINIO_ENDPOINT"); ok {
 		s3Endpoint = address
@@ -190,7 +185,7 @@ func TestSuccessfulRunWithGit(t *testing.T) {
 
 	// Set up the main program
 	var prg MainProgram
-	if err := prg.Setup(e, []string{configPath}, ""); !a.NoError(err) {
+	if err := prg.Setup(e, configPath); !a.NoError(err) {
 		return
 	}
 
@@ -271,7 +266,7 @@ func TestSuccessfulRunWithGit(t *testing.T) {
 	}
 
 	// Re-create konvahti and run it again
-	if err := prg.Setup(e, []string{configPath}, ""); !a.NoError(err) {
+	if err := prg.Setup(e, configPath); !a.NoError(err) {
 		return
 	}
 	if err := prg.Run(context.Background()); !a.NoError(err) {
@@ -288,20 +283,23 @@ func TestSuccessfulRunWithGit(t *testing.T) {
 
 func konvahtiGitConfig() string {
 	return fmt.Sprintf(`
-name: integrationtest_git
-git:
-  url: %s
-  branch: master
-  directory: %s/git
-refreshTimeout: 4s
-actions:
-  - name: integrationtest
-    env:
-      WRITEME: helloworld
-    command:
-      - sh
-      - ../%s
-      - %s
+log:
+  level: debug
+watchers:
+  - name: integrationtest_git
+    git:
+      url: %s
+      branch: master
+      directory: %s/git
+    refreshTimeout: 4s
+    actions:
+      - name: integrationtest
+        env:
+          WRITEME: helloworld
+        command:
+          - sh
+          - ../%s
+          - %s
 `, sourceGitURL, testDataDirectory, writeshFilename, writeshArg)
 }
 
@@ -352,7 +350,7 @@ func TestSuccessfulRunWithS3(t *testing.T) {
 
 	// Set up the main program
 	var prg MainProgram
-	if err := prg.Setup(e, []string{configPath}, ""); !a.NoError(err) {
+	if err := prg.Setup(e, configPath); !a.NoError(err) {
 		return
 	}
 
@@ -396,7 +394,7 @@ func TestSuccessfulRunWithS3(t *testing.T) {
 	}
 
 	// Re-create konvahti and run it again
-	if err := prg.Setup(e, []string{configPath}, ""); !a.NoError(err) {
+	if err := prg.Setup(e, configPath); !a.NoError(err) {
 		return
 	}
 	if err := prg.Run(context.Background()); !a.NoError(err) {
@@ -413,24 +411,27 @@ func TestSuccessfulRunWithS3(t *testing.T) {
 
 func konvahtiS3Config() string {
 	return fmt.Sprintf(`
-name: integrationtest_s3
-s3:
-  endpoint: %s
-  accessKeyId: %s
-  secretAccessKey: %s
-  bucketName: %s
-  bucketPrefix: %s
-  directory: %s
-  disableTls: true
-refreshTimeout: 4s
-actions:
-  - name: integrationtest
-    env:
-      WRITEME: helloworld
-    command:
-      - sh
-      - ../%s
-      - %s
+log:
+  level: debug
+watchers:
+  - name: integrationtest_s3
+    s3:
+      endpoint: %s
+      accessKeyId: %s
+      secretAccessKey: %s
+      bucketName: %s
+      bucketPrefix: %s
+      directory: %s
+      disableTls: true
+    refreshTimeout: 4s
+    actions:
+      - name: integrationtest
+        env:
+          WRITEME: helloworld
+        command:
+          - sh
+          - ../%s
+          - %s
 `,
 		s3Endpoint, s3AccessKeyId, s3SecretAccessKey,
 		s3BucketName, s3BucketPrefix, testDataDirectory,

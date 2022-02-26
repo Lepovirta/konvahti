@@ -15,7 +15,7 @@ import (
 type Config struct {
 	Level               string `yaml:"level,omitempty"`
 	EnablePrettyLogging bool   `yaml:"enablePrettyLogging,omitempty"`
-	OutputStream        string `yaml:"outputStream,omitempty"`
+	OutputStreamName    string `yaml:"outputStream,omitempty"`
 	TimestampFormat     string `yaml:"timestampFormat,omitempty"`
 	TimestampFieldName  string `yaml:"timestampFieldName,omitempty"`
 }
@@ -34,6 +34,18 @@ func (c *Config) FromYAMLFile(fs billy.Filesystem, filename string) error {
 	)
 }
 
+func (c *Config) Validate() error {
+	_, err := c.parseLevel()
+	if err != nil {
+		return err
+	}
+	outStreamName := strings.ToUpper(c.OutputStreamName)
+	if outStreamName != "STDOUT" && outStreamName != "STDERR" {
+		return fmt.Errorf("invalid output stream %s", c.OutputStreamName)
+	}
+	return nil
+}
+
 func (c *Config) Setup(stdout io.Writer, stderr io.Writer) (zerolog.Logger, error) {
 	var err error
 
@@ -45,26 +57,22 @@ func (c *Config) Setup(stdout io.Writer, stderr io.Writer) (zerolog.Logger, erro
 		zerolog.TimeFieldFormat = c.TimestampFormat
 	}
 	var level zerolog.Level
-	if c.Level == "" {
-		level = zerolog.InfoLevel
-	} else {
-		level, err = c.parseLevel()
-		if err != nil {
-			return zerolog.Nop(), err
-		}
+	level, err = c.parseLevel()
+	if err != nil {
+		return zerolog.Nop(), err
 	}
 	zerolog.SetGlobalLevel(level)
 
 	// Logger customization
+	outStreamName := strings.ToUpper(c.OutputStreamName)
 	var outStream io.Writer
-	if strings.ToUpper(c.OutputStream) == "STDOUT" {
+	switch outStreamName {
+	case "STDOUT":
 		outStream = stdout
-	} else if strings.ToUpper(c.OutputStream) == "STDERR" {
+	case "STDERR", "":
 		outStream = stderr
-	} else if c.OutputStream == "" {
-		outStream = stderr
-	} else {
-		return zerolog.Nop(), fmt.Errorf("invalid output stream %s", c.OutputStream)
+	default:
+		return zerolog.Nop(), fmt.Errorf("invalid output stream %s", c.OutputStreamName)
 	}
 
 	if c.EnablePrettyLogging {
@@ -80,5 +88,8 @@ func (c *Config) Setup(stdout io.Writer, stderr io.Writer) (zerolog.Logger, erro
 }
 
 func (c *Config) parseLevel() (zerolog.Level, error) {
+	if c.Level == "" {
+		return zerolog.InfoLevel, nil
+	}
 	return zerolog.ParseLevel(c.Level)
 }

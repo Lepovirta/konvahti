@@ -1,48 +1,44 @@
 package start
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog"
 	"gitlab.com/lepovirta/konvahti/internal/env"
-	"gitlab.com/lepovirta/konvahti/internal/logging"
 	"gitlab.com/lepovirta/konvahti/internal/watcher"
 	"golang.org/x/sync/errgroup"
-	"gopkg.in/yaml.v3"
-)
-
-const (
-	appName = "konvahti"
 )
 
 type MainProgram struct {
 	env      env.Env
+	config   Config
 	watchers []watcher.Watcher
 	logger   zerolog.Logger
 }
 
 func (m *MainProgram) Setup(
 	env env.Env,
-	configFileNames []string,
-	logConfigFileName string,
+	configFileName string,
 ) (err error) {
-	m.logger, err = setupLogging(&env, logConfigFileName)
+	if isSTDIN(configFileName) {
+		if err := m.config.FromYAML(env.Stdin); err != nil {
+			return fmt.Errorf("failed to read configuration from STDIN: %w", err)
+		}
+	} else {
+		if err := m.config.FromYAMLFile(env.Fs, configFileName); err != nil {
+			return fmt.Errorf("failed to read configuration file %s: %w", configFileName, err)
+		}
+	}
+
+	m.logger, err = m.setupLogging()
 	if err != nil {
 		return
 	}
 
-	var configs []watcher.Config
-	err = readConfigs(&env, &configs, configFileNames)
-	if err != nil {
-		return
-	}
-
-	m.logger.Debug().Msgf("found %d configs", len(configs))
-	m.watchers = make([]watcher.Watcher, len(configs))
-	for i, config := range configs {
+	m.logger.Debug().Msgf("found %d watcher configs", len(m.config.Watchers))
+	m.watchers = make([]watcher.Watcher, len(m.config.Watchers))
+	for i, config := range m.config.Watchers {
 		err = m.watchers[i].Setup(&env, config, m.logger)
 		if err != nil {
 			return
@@ -53,19 +49,8 @@ func (m *MainProgram) Setup(
 	return nil
 }
 
-func setupLogging(env *env.Env, logConfigFileName string) (logger zerolog.Logger, err error) {
-	var loggingConfig logging.Config
-	if logConfigFileName != "" {
-		if err = loggingConfig.FromYAMLFile(env.Fs, logConfigFileName); err != nil {
-			err = fmt.Errorf("failed to parse log config from file %s: %w", logConfigFileName, err)
-			return
-		}
-	}
-	if err = envconfig.Process(appName+"_log", &loggingConfig); err != nil {
-		err = fmt.Errorf("failed to read log config from env vars: %w", err)
-		return
-	}
-	logger, err = loggingConfig.Setup(env.Stdout, env.Stderr)
+func (m *MainProgram) setupLogging() (logger zerolog.Logger, err error) {
+	logger, err = m.config.Logging.Setup(m.env.Stdout, m.env.Stderr)
 	if err != nil {
 		err = fmt.Errorf("failed to set up logging: %w", err)
 		return
@@ -73,37 +58,13 @@ func setupLogging(env *env.Env, logConfigFileName string) (logger zerolog.Logger
 	return
 }
 
-func readConfigs(env *env.Env, configs *[]watcher.Config, configFileNames []string) error {
-	if isSTDIN(configFileNames) {
-		if err := yaml.NewDecoder(bufio.NewReader(env.Stdin)).Decode(configs); err != nil {
-			return fmt.Errorf("failed to read configs from STDIN: %w", err)
-		}
-	} else {
-		*configs = make([]watcher.Config, len(configFileNames))
-		for i, configFileName := range configFileNames {
-			if err := (*configs)[i].FromYAMLFile(env.Fs, configFileName); err != nil {
-				return fmt.Errorf("failed to read config from %s: %w", configFileName, err)
-			}
-			if (*configs)[i].Name == "" {
-				(*configs)[i].Name = fmt.Sprintf("%d", i)
-			}
-			if err := (*configs)[i].Validate(); err != nil {
-				return fmt.Errorf("invalid configuration %d - %s: %w", i, (*configs)[i].Name, err)
-			}
-		}
-	}
-	return nil
-}
-
-func isSTDIN(configFileNames []string) bool {
-	if len(configFileNames) != 1 {
-		return false
-	}
-	switch configFileNames[0] {
+func isSTDIN(configFileName string) bool {
+	switch configFileName {
 	case "-", "STDIN":
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func (m *MainProgram) Run(ctx context.Context) error {

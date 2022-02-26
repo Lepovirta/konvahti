@@ -41,7 +41,7 @@ func (c *Config) sanitizeBucketPrefix() {
 func sanitizeBucketPrefix(bucketPrefix string) string {
 	trimmedPrefix := strings.Trim(bucketPrefix, "/")
 	if trimmedPrefix == "" {
-		return "/"
+		return ""
 	}
-	return fmt.Sprintf("/%s/", trimmedPrefix)
+	return fmt.Sprintf("%s/", trimmedPrefix)
 }

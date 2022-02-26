@@ -20,10 +20,10 @@ const (
 )
 
 type S3Source struct {
-	fs               billy.Filesystem
-	config           Config
-	minioClient      *minio.Client
-	lastChanges      stat.Stat
+	fs              billy.Filesystem
+	config          Config
+	minioClient     *minio.Client
+	lastChanges     stat.Stat
 	latestDirectory string
 }
 
@@ -96,7 +96,7 @@ func (s *S3Source) pullObject(
 	objectKey string,
 	logger zerolog.Logger,
 ) error {
-	filename := s.objectKeyToFilename(objectKey)
+	filename := objectKeyToFilename(s.config.BucketPrefix, objectKey)
 	file, err := s.prepareTargetFile(fs, filename)
 	if err != nil {
 		return err
@@ -117,6 +117,7 @@ func (s *S3Source) pullObject(
 		}
 	}()
 
+	logger.Debug().Str("objectKey", objectKey).Str("filename", filename).Msg("downloading file")
 	_, err = io.Copy(file, object)
 	return err
 }
@@ -126,7 +127,7 @@ func (s *S3Source) copyLocalFile(
 	objectKey string,
 	logger zerolog.Logger,
 ) error {
-	filename := s.objectKeyToFilename(objectKey)
+	filename := objectKeyToFilename(s.config.BucketPrefix, objectKey)
 	file, err := s.prepareTargetFile(fs, filename)
 	if err != nil {
 		return err
@@ -147,6 +148,7 @@ func (s *S3Source) copyLocalFile(
 		}
 	}()
 
+	logger.Debug().Str("objectKey", objectKey).Str("filename", filename).Msg("copying file")
 	_, err = io.Copy(file, sourceFile)
 	return err
 }
@@ -177,8 +179,8 @@ func (s *S3Source) listFiles(ctx context.Context) (files stat.Stat, err error) {
 	return
 }
 
-func (s *S3Source) objectKeyToFilename(key string) string {
-	bucketPrefixLen := len(s.config.BucketPrefix)
+func objectKeyToFilename(prefix, key string) string {
+	bucketPrefixLen := len(prefix)
 	if bucketPrefixLen >= len(key) {
 		return ""
 	}

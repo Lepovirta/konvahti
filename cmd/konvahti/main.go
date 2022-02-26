@@ -32,11 +32,7 @@ func mainWithErr() error {
 	}
 
 	var prg start.MainProgram
-	if err := prg.Setup(
-		env.RealEnv(),
-		params.configFilenames,
-		params.logConfigFilename,
-	); err != nil {
+	if err := prg.Setup(env.RealEnv(), params.configFilename); err != nil {
 		return err
 	}
 
