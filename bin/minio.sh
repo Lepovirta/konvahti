@@ -32,5 +32,6 @@ start_minio() {
 case "${1:-}" in
     "stop") docker stop minio ;;
     "start") start_minio ;;
-    "*") echo "usage: $0 start|stop" >&2 ;;
+    "clean") docker volume rm minio ;;
+    "*") echo "usage: $0 start|stop|clean" >&2 ;;
 esac
