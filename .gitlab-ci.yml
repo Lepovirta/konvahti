@@ -1,0 +1,60 @@
+include:
+- template: Security/Dependency-Scanning.gitlab-ci.yml
+- template: Security/License-Scanning.gitlab-ci.yml
+- template: Security/SAST.gitlab-ci.yml
+- template: Security/Secret-Detection.gitlab-ci.yml
+
+image: golang:1.17
+
+stages:
+- dependencies
+- test
+
+variables:
+  BUILD_PARALLELISM: 1
+
+workflow:
+  rules:
+  - if: $CI_MERGE_REQUEST_ID
+  - if: $CI_COMMIT_BRANCH == "master"
+  - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+
+.go-cache:
+  variables:
+    GOPATH: $CI_PROJECT_DIR/.go
+  before_script:
+  - mkdir -p .go
+  cache:
+    paths:
+    - .go/pkg/mod/
+
+gomod:
+  stage: dependencies
+  extends: .go-cache
+  script:
+  - go mod download
+
+lint:
+  stage: test
+  extends: .go-cache
+  image: golangci/golangci-lint:v1.44.0
+  script:
+  - golangci-lint run -v --timeout 4m --skip-dirs '(^|/).go($|/)'
+
+test:
+  stage: test
+  extends: .go-cache
+  variables:
+    MINIO_ENDPOINT: minio:9000
+    MINIO_ROOT_USER: AKIAIOSFODNN7EXAMPLE
+    MINIO_ROOT_PASSWORD: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  services:
+  - name: quay.io/minio/minio
+    alias: minio
+    command:
+    - server
+    - /data
+  script:
+  - ./bin/test.sh integration
+  - go tool cover -func=coverage.txt
+  coverage: '/total:\s+\(statements\)\s+(\d+.\d+\%)/'
