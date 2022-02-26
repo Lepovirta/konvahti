@@ -75,7 +75,9 @@ func (c *Config) ShouldRunOnce() bool {
 
 func (c *Config) ctxWithRefreshTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	if c.RefreshTimeout <= 0 {
-		return ctx, func() {}
+		return ctx, func() {
+			// Does nothing because there's no timeout to cancel
+		}
 	}
 	return context.WithTimeout(ctx, c.RefreshTimeout)
 }

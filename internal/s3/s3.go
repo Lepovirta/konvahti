@@ -65,25 +65,33 @@ func (s *S3Source) Refresh(ctx context.Context) ([]string, error) {
 		s.fs,
 		s.latestDirectory,
 		nextDirectory,
-		func(fs billy.Filesystem) error {
-			for _, objectKey := range updated {
-				if err := s.pullObject(ctx, fs, objectKey, logger); err != nil {
-					return err
-				}
-			}
-			for _, objectKey := range existing {
-				if err := s.copyLocalFile(fs, objectKey, logger); err != nil {
-					return err
-				}
-			}
-			return nil
-		},
+		s.createDirectoryPopulator(ctx, updated, existing, logger),
 	); err != nil {
 		return nil, err
 	}
 
 	s.lastChanges = files
 	return updated, nil
+}
+
+func (s *S3Source) createDirectoryPopulator(
+	ctx context.Context,
+	updated, existing []string,
+	logger zerolog.Logger,
+) file.DirectoryPopulator {
+	return func(fs billy.Filesystem) error {
+		for _, objectKey := range updated {
+			if err := s.pullObject(ctx, fs, objectKey, logger); err != nil {
+				return err
+			}
+		}
+		for _, objectKey := range existing {
+			if err := s.copyLocalFile(fs, objectKey, logger); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 func timestampString() string {
@@ -101,11 +109,7 @@ func (s *S3Source) pullObject(
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			logger.Error().Err(err).Msg("failed to close file handler")
-		}
-	}()
+	defer loggedFileClose(file, logger)
 
 	object, err := s.minioClient.GetObject(ctx, s.config.BucketName, objectKey, minio.GetObjectOptions{})
 	if err != nil {
@@ -132,25 +136,23 @@ func (s *S3Source) copyLocalFile(
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			logger.Error().Err(err).Msg("failed to close file handler")
-		}
-	}()
+	defer loggedFileClose(file, logger)
 
 	sourceFile, err := s.fs.Open(s.fs.Join(s.latestDirectory, filename))
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := sourceFile.Close(); err != nil {
-			logger.Error().Err(err).Msg("failed to close file handler")
-		}
-	}()
+	defer loggedFileClose(sourceFile, logger)
 
 	logger.Debug().Str("objectKey", objectKey).Str("filename", filename).Msg("copying file")
 	_, err = io.Copy(file, sourceFile)
 	return err
+}
+
+func loggedFileClose(file billy.File, logger zerolog.Logger) {
+	if err := file.Close(); err != nil {
+		logger.Error().Err(err).Msg("failed to close file handler")
+	}
 }
 
 func (s *S3Source) prepareTargetFile(fs billy.Filesystem, filename string) (billy.File, error) {

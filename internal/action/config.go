@@ -33,7 +33,9 @@ func (c *Config) Validate() error {
 
 func (c *Config) ctxWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	if c.Timeout <= 0 {
-		return ctx, func() {}
+		return ctx, func() {
+			// Does nothing because there's no timeout to cancel
+		}
 	}
 	return context.WithTimeout(ctx, c.Timeout)
 }

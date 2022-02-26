@@ -15,11 +15,13 @@ const (
 	linkSuffix = "_ln"
 )
 
+type DirectoryPopulator func(billy.Filesystem)error
+
 func SwapDirectory(
 	fs billy.Filesystem,
 	targetDirectoryLink string,
 	newDirectory string,
-	f func(billy.Filesystem) error,
+	directoryPopulator DirectoryPopulator,
 ) error {
 	newDirectoryLink := newDirectory + linkSuffix
 
@@ -27,24 +29,14 @@ func SwapDirectory(
 	if err := fs.MkdirAll(newDirectory, 0750); err != nil {
 		return err
 	}
-	defer func() {
-		dir, err := fs.Readlink(targetDirectoryLink)
-		if err != nil {
-			return
-		}
-		if filepath.Base(newDirectory) != dir {
-			if err := util.RemoveAll(fs, newDirectory); err != nil {
-				log.Error().Err(err).Msg("failed to clean new directory")
-			}
-		}
-	}()
+	defer cleanupNewDirectory(fs, targetDirectoryLink, newDirectory)
 
 	// Populate the temporary directory
 	tempFs, err := fs.Chroot(newDirectory)
 	if err != nil {
 		return err
 	}
-	if err := f(tempFs); err != nil {
+	if err := directoryPopulator(tempFs); err != nil {
 		return err
 	}
 
@@ -52,17 +44,7 @@ func SwapDirectory(
 	if err := fs.Symlink(filepath.Base(newDirectory), newDirectoryLink); err != nil {
 		return err
 	}
-	defer func() {
-		if _, err := fs.Lstat(newDirectoryLink); err != nil {
-			if !os.IsNotExist(err) {
-				log.Error().Err(err).Msg("failed to get new directory link info")
-			}
-			return
-		}
-		if err := fs.Remove(newDirectoryLink); err != nil {
-			log.Error().Err(err).Msg("failed to delete new directory link")
-		}
-	}()
+	defer cleanupNewDirectoryLink(fs, newDirectoryLink)
 
 	log.Debug().
 		Str("newDirectoryLink", newDirectoryLink).
@@ -72,4 +54,28 @@ func SwapDirectory(
 		return err
 	}
 	return nil
+}
+
+func cleanupNewDirectory(fs billy.Filesystem, targetDirectoryLink, newDirectory string) {
+	dir, err := fs.Readlink(targetDirectoryLink)
+	if err != nil {
+		return
+	}
+	if filepath.Base(newDirectory) != dir {
+		if err := util.RemoveAll(fs, newDirectory); err != nil {
+			log.Error().Err(err).Msg("failed to clean new directory")
+		}
+	}
+}
+
+func cleanupNewDirectoryLink(fs billy.Filesystem, newDirectoryLink string) {
+	if _, err := fs.Lstat(newDirectoryLink); err != nil {
+		if !os.IsNotExist(err) {
+			log.Error().Err(err).Msg("failed to get new directory link info")
+		}
+		return
+	}
+	if err := fs.Remove(newDirectoryLink); err != nil {
+		log.Error().Err(err).Msg("failed to delete new directory link")
+	}
 }
