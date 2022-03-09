@@ -5,15 +5,10 @@ import (
 	"io"
 
 	"github.com/go-git/go-billy/v5"
-	"github.com/kelseyhightower/envconfig"
 	"gitlab.com/lepovirta/konvahti/internal/file"
 	"gitlab.com/lepovirta/konvahti/internal/logging"
 	"gitlab.com/lepovirta/konvahti/internal/watcher"
 	"gopkg.in/yaml.v3"
-)
-
-const (
-	appName = "konvahti"
 )
 
 type Config struct {
@@ -49,5 +44,13 @@ func (c *Config) FromYAMLFile(fs billy.Filesystem, filename string) error {
 }
 
 func (c *Config) FromEnvVars() error {
-	return envconfig.Process(appName, c)
+	if err := c.Logging.FromEnvVars(); err != nil {
+		return err
+	}
+	for _, watcher := range c.Watchers {
+		if err := watcher.FromEnvVars(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

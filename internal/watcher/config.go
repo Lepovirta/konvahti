@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-git/go-billy/v5"
+	"github.com/kelseyhightower/envconfig"
 	"gitlab.com/lepovirta/konvahti/internal/action"
 	"gitlab.com/lepovirta/konvahti/internal/file"
 	"gitlab.com/lepovirta/konvahti/internal/git"
@@ -80,4 +81,11 @@ func (c *Config) ctxWithRefreshTimeout(ctx context.Context) (context.Context, co
 		}
 	}
 	return context.WithTimeout(ctx, c.RefreshTimeout)
+}
+
+func (c *Config) FromEnvVars() error {
+	if c.Name == "" {
+		return nil
+	}
+	return envconfig.Process(fmt.Sprintf("konvahti_%s", c.Name), c)
 }
