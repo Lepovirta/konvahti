@@ -9,6 +9,7 @@ type Config struct {
 	Endpoint        string `yaml:"endpoint"`
 	AccessKeyId     string `yaml:"accessKeyId"`
 	SecretAccessKey string `yaml:"secretAccessKey"`
+	SessionToken    string `yaml:"sessionToken"`
 	BucketName      string `yaml:"bucketName"`
 	BucketPrefix    string `yaml:"bucketPrefix"`
 	Directory       string `yaml:"directory"`

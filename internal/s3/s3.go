@@ -30,7 +30,7 @@ type S3Source struct {
 func (s *S3Source) Setup(fs billy.Filesystem, config Config) (err error) {
 	config.sanitizeBucketPrefix()
 	s.minioClient, err = minio.New(config.Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(config.AccessKeyId, config.SecretAccessKey, ""),
+		Creds:  credentials.NewStaticV4(config.AccessKeyId, config.SecretAccessKey, config.SessionToken),
 		Secure: !config.DisableTLS,
 	})
 	if err != nil {
@@ -71,7 +71,16 @@ func (s *S3Source) Refresh(ctx context.Context) ([]string, error) {
 	}
 
 	s.lastChanges = files
-	return updated, nil
+
+	updatedFiles := make([]string, 0, len(updated))
+	for _, objectKey := range updated {
+		updatedFiles = append(updatedFiles, s.objectKeyToFilename(objectKey))
+	}
+	return updatedFiles, nil
+}
+
+func (s *S3Source) objectKeyToFilename(objectKey string) string {
+	return objectKeyToFilename(s.config.BucketPrefix, objectKey)
 }
 
 func (s *S3Source) createDirectoryPopulator(
@@ -104,7 +113,12 @@ func (s *S3Source) pullObject(
 	objectKey string,
 	logger zerolog.Logger,
 ) error {
-	filename := objectKeyToFilename(s.config.BucketPrefix, objectKey)
+	filename := s.objectKeyToFilename(objectKey)
+	if filename == "" {
+		return nil
+	}
+
+	logger.Debug().Str("objectkey", objectKey).Str("filename", filename).Msg("preparing file before download")
 	file, err := s.prepareTargetFile(fs, filename)
 	if err != nil {
 		return err
@@ -131,7 +145,12 @@ func (s *S3Source) copyLocalFile(
 	objectKey string,
 	logger zerolog.Logger,
 ) error {
-	filename := objectKeyToFilename(s.config.BucketPrefix, objectKey)
+	filename := s.objectKeyToFilename(objectKey)
+	if filename == "" {
+		return nil
+	}
+
+	logger.Debug().Str("objectkey", objectKey).Str("filename", filename).Msg("preparing file before copy")
 	file, err := s.prepareTargetFile(fs, filename)
 	if err != nil {
 		return err
@@ -176,7 +195,9 @@ func (s *S3Source) listFiles(ctx context.Context) (files stat.Stat, err error) {
 		if object.Err != nil {
 			return nil, object.Err
 		}
-		files[object.Key] = object.LastModified
+		if object.Key != s.config.BucketPrefix {
+			files[object.Key] = object.LastModified
+		}
 	}
 	return
 }
