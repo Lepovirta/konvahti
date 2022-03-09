@@ -21,6 +21,8 @@ func (m *MainProgram) Setup(
 	env env.Env,
 	configFileName string,
 ) (err error) {
+	m.env = env
+
 	if isSTDIN(configFileName) {
 		if err := m.config.FromYAML(env.Stdin); err != nil {
 			return fmt.Errorf("failed to read configuration from STDIN: %w", err)
@@ -29,6 +31,14 @@ func (m *MainProgram) Setup(
 		if err := m.config.FromYAMLFile(env.Fs, configFileName); err != nil {
 			return fmt.Errorf("failed to read configuration file %s: %w", configFileName, err)
 		}
+	}
+
+	if err := m.config.FromEnvVars(); err != nil {
+		return fmt.Errorf("failed to load config from env: %w", err)
+	}
+
+	if err := m.config.Validate(); err != nil {
+		return fmt.Errorf("config validation failed: %w", err)
 	}
 
 	m.logger, err = m.setupLogging()
