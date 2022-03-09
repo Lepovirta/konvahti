@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-git/go-billy/v5"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/lepovirta/konvahti/internal/file"
@@ -40,7 +41,7 @@ func (c *Config) Validate() error {
 		return err
 	}
 	outStreamName := strings.ToUpper(c.OutputStreamName)
-	if outStreamName != "STDOUT" && outStreamName != "STDERR" {
+	if outStreamName != "" && outStreamName != "STDOUT" && outStreamName != "STDERR" {
 		return fmt.Errorf("invalid output stream %s", c.OutputStreamName)
 	}
 	return nil
@@ -79,7 +80,7 @@ func (c *Config) Setup(stdout io.Writer, stderr io.Writer) (zerolog.Logger, erro
 		outStream = zerolog.ConsoleWriter{Out: outStream}
 	}
 
-	l := zerolog.New(outStream).With().Timestamp().Logger()
+	l := zerolog.New(outStream).Level(level).With().Timestamp().Logger()
 
 	// Make the logger global
 	log.Logger = l
@@ -92,4 +93,8 @@ func (c *Config) parseLevel() (zerolog.Level, error) {
 		return zerolog.InfoLevel, nil
 	}
 	return zerolog.ParseLevel(c.Level)
+}
+
+func (c *Config) FromEnvVars() error {
+	return envconfig.Process("konvahti_log", c)
 }
