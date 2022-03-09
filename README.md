@@ -92,21 +92,21 @@ The following settings are available.
 * How long to wait between each cycle.
 * Accepts a string value in [Go duration format](https://pkg.go.dev/time#ParseDuration).
 * When not set, the cycle is only ran once.
-* Environment variable: `KONVAHTI_WATCHERS_N_INTERVAL` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_INTERVAL` where `NAME` is the name of the watcher config.
 
 **`refreshTimeout` (optional):**
 
 * How long to allow Konvahti to wait for fetching the latest files from the remote source.
 * Accepts a string value in [Go duration format](https://pkg.go.dev/time#ParseDuration).
 * No timeout is used when this is not set.
-* Environment variable: `KONVAHTI_WATCHERS_N_REFRESHTIMEOUT` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_REFRESHTIMEOUT` where `NAME` is the name of the watcher config.
 
 **`name` (optional):**
 
 * Name of the configuration used for logging purposes.
 * You can use any string value you like.
 * By default, the index of the configuration is used here.
-* Environment variable: `KONVAHTI_WATCHERS_N_NAME` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_NAME` where `NAME` is the name of the watcher config.
 
 **`git` (optional):**
 
@@ -135,18 +135,18 @@ The following settings are available.
 **`url` (required):**
 
 * The URL for the remote Git repository
-* Environment variable: `KONVAHTI_WATCHERS_N_GIT_URL` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_GIT_URL` where `NAME` is the name of the watcher config.
 
 **`branch` (required):**
 
 * The name of the branch to track from the Git repository
 * For example: `main`
-* Environment variable: `KONVAHTI_WATCHERS_N_GIT_BRANCH` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_GIT_BRANCH` where `NAME` is the name of the watcher config.
 
 **`directory` (required):**
 
 * The local directory where the Git repository is to be cloned to
-* Environment variable: `KONVAHTI_WATCHERS_N_GIT_DIRECTORY` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_GIT_DIRECTORY` where `NAME` is the name of the watcher config.
 
 
 **`httpAuth` (optional):**
@@ -156,10 +156,10 @@ The following settings are available.
 * `password`: Password for the HTTP basic authentication
 * `token`: Token for HTTP token authentication. Supports OAuth bearer tokens.
 * Use the username and password for GitHub, BitBucket, and GitLab instead of the token.
-* Environment variables (`N` is the position of the watcher in the configuration)
-  * `KONVAHTI_WATCHERS_N_GIT_HTTPAUTH_USERNAME`
-  * `KONVAHTI_WATCHERS_N_GIT_HTTPAUTH_PASSWORD`
-  * `KONVAHTI_WATCHERS_N_GIT_HTTPAUTH_TOKEN`
+* Environment variables (`NAME` is the name of the watcher config)
+  * `KONVAHTI_NAME_GIT_HTTPAUTH_USERNAME`
+  * `KONVAHTI_NAME_GIT_HTTPAUTH_PASSWORD`
+  * `KONVAHTI_NAME_GIT_HTTPAUTH_TOKEN`
 
 **`sshAuth` (optional):**
 
@@ -167,10 +167,10 @@ The following settings are available.
 * `username`: Username for SSH authentication
 * `keyPath`: Path to a SSH key on the file system to use for SSH authentication
 * `keyPassword`: Password for the SSH key
-* Environment variables (`N` is the position of the watcher in the configuration)
-  * `KONVAHTI_WATCHERS_N_GIT_SSHAUTH_USERNAME`
-  * `KONVAHTI_WATCHERS_N_GIT_SSHAUTH_KEYPATH`
-  * `KONVAHTI_WATCHERS_N_GIT_SSHAUTH_KEYPASSWORD`
+* Environment variables (`NAME` is the name of the watcher config)
+  * `KONVAHTI_NAME_GIT_SSHAUTH_USERNAME`
+  * `KONVAHTI_NAME_GIT_SSHAUTH_KEYPATH`
+  * `KONVAHTI_NAME_GIT_SSHAUTH_KEYPASSWORD`
 
 ### S3
 
@@ -184,28 +184,33 @@ The following settings are available.
 * Endpoint URL for S3.
 * If you plan on using AWS S3, see the [list of endpoints they provide](https://docs.aws.amazon.com/general/latest/gr/s3.html).
 * If you plan on using a S3 compatible service, see the service provider's documentation for more details.
-* Environment variable: `KONVAHTI_WATCHERS_N_S3_ENDPOINT` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_S3_ENDPOINT` where `NAME` is the name of the watcher config.
 
 **`accessKeyId` (required):**
 
 * The ID part of the access key used for accessing S3
-* Environment variable: `KONVAHTI_WATCHERS_N_S3_ACCESSKEYID` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_S3_ACCESSKEYID` where `NAME` is the name of the watcher config.
 
 **`secretAccessKey` (required):**
 
 * The secret part of the access key used for accessing S3
-* Environment variable: `KONVAHTI_WATCHERS_N_S3_SECRETACCESSKEY` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_S3_SECRETACCESSKEY` where `NAME` is the name of the watcher config.
+
+**`sessionToken` (optional):**
+
+* Session token used for accessing S3
+* Environment variable: `KONVAHTI_NAME_S3_SESSIONTOKEN` where `NAME` is the name of the watcher config.
 
 **`bucketName` (required):**
 
 * Name of the S3 bucket to pull files from
-* Environment variable: `KONVAHTI_WATCHERS_N_S3_BUCKETNAME` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_S3_BUCKETNAME` where `NAME` is the name of the watcher config.
 
 **`directory` (required):**
 
 * The local directory to use for storing all of the fetched S3 files
 * Note that the latest S3 files will be found from the sub-directory `latest`
-* Environment variable: `KONVAHTI_WATCHERS_N_S3_DIRECTORY` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_S3_DIRECTORY` where `NAME` is the name of the watcher config.
 
 **`bucketPrefix` (optional):**
 
@@ -213,14 +218,14 @@ The following settings are available.
 * You can use this to limit fetching only certain "directory" of files from S3
 * The prefix is automatically substracted from the local file paths
 * By default, all files from the bucket are fetched
-* Environment variable: `KONVAHTI_WATCHERS_N_S3_BUCKETPREFIX` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_S3_BUCKETPREFIX` where `NAME` is the name of the watcher config.
 
 **`disableTls` (optional):**
 
 * When set to `true`, TLS certificate checking is disabled
 * This is intended for testing purposes only
 * Default value: `false`
-* Environment variable: `KONVAHTI_WATCHERS_N_S3_DISABLETLS` where `N` is the position of the watcher in the configuration.
+* Environment variable: `KONVAHTI_NAME_S3_DISABLETLS` where `NAME` is the name of the watcher config.
 
 ### Actions
 
